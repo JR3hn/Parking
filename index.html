@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parkeringsregistrering</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🅿️ Parkeringsregistrering</h1>
+      <p class="sub">Registrera kontaktuppgifter, regnummer, slutdatum och grupp</p>
+    </header>
+
+    <form id="parkForm" class="card">
+      <!-- honeypot, ska vara tom -->
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" class="hp">
+      <div class="field">
+        <label for="fornamn">Förnamn</label>
+        <input id="fornamn" name="fornamn" type="text" placeholder="Anna" required autocomplete="given-name" maxlength="50">
+      </div>
+      <div class="field">
+        <label for="efternamn">Efternamn</label>
+        <input id="efternamn" name="efternamn" type="text" placeholder="Andersson" required autocomplete="family-name" maxlength="50">
+      </div>
+      <div class="field">
+        <label for="telefon">Telefonnummer</label>
+        <input id="telefon" name="telefon" type="tel" placeholder="07xxxxxxxx" required autocomplete="tel" maxlength="20">
+      </div>
+      <div class="field">
+        <label for="regnr">Regnummer</label>
+        <input id="regnr" name="regnr" type="text" placeholder="ABC123" required autocomplete="off" maxlength="10">
+      </div>
+      <div class="field">
+        <label for="slutdatum">Slutdatum</label>
+        <input id="slutdatum" name="slutdatum" type="date" required>
+      </div>
+      <div class="field">
+        <label for="grupp">Grupptillhörighet</label>
+        <input id="grupp" name="grupp" type="text" placeholder="t.ex. Exempel Scoutkår" required autocomplete="off" maxlength="50">
+      </div>
+      <button type="submit" id="submitBtn">Registrera</button>
+      <p id="formMsg" class="msg" role="status"></p>
+    </form>
+
+    <footer>
+      <p>Data lagras i Google Sheets via Apps Script.</p>
+    </footer>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

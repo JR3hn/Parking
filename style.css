@@ -1,0 +1,100 @@
+:root {
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --text: #1a1d23;
+  --muted: #6b7280;
+  --border: #e4e7ec;
+  --accent: #2563eb;
+  --accent-dark: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --text: #e7e9ee;
+    --muted: #9aa1ac;
+    --border: #2a2e37;
+    --accent: #3b82f6;
+    --accent-dark: #60a5fa;
+  }
+}
+
+* { box-sizing: border-box; }
+
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 3rem;
+}
+
+header { text-align: center; margin-bottom: 2rem; }
+header h1 { font-size: 1.7rem; margin: 0 0 .35rem; }
+header .sub { color: var(--muted); margin: 0; font-size: .95rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+
+.field { margin-bottom: 1.1rem; display: flex; flex-direction: column; gap: .4rem; }
+label { font-size: .85rem; font-weight: 600; color: var(--muted); }
+
+input, select {
+  padding: .65rem .8rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+button {
+  width: 100%;
+  padding: .75rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, opacity .15s ease;
+}
+button:hover { background: var(--accent-dark); }
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+.msg { font-size: .88rem; margin: .8rem 0 0; min-height: 1.2em; }
+.msg.ok { color: var(--success); }
+.msg.err { color: var(--danger); }
+
+footer { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 1rem; }
