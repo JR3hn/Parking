@@ -36,8 +36,10 @@ function checkRateLimit_() {
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
-  lock.waitLock(5000);
+  let lockAcquired = false;
   try {
+    lock.waitLock(5000);
+    lockAcquired = true;
     checkRateLimit_();
 
     const data = JSON.parse(e.postData.contents);
@@ -79,6 +81,6 @@ function doPost(e) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   } finally {
-    lock.releaseLock();
+    if (lockAcquired) lock.releaseLock();
   }
 }

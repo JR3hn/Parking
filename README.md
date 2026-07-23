@@ -1,7 +1,7 @@
 # Parkeringsregistrering
 
-Static site för users: fyll i namn, telefon, regnr, slutdatum, grupp → sparas i Google Sheet via Apps Script.
-Sidan är skriv-only för users — ingen ser listan på sidan. Endast admin ser/hanterar data direkt i Google Sheet.
+Static site för users: fyll i namn, telefon, regnr, slutdatum, grupp → sparas i Google Sheets via Apps Script.
+Sidan är write-only för users, ingen ser listan. Endast admin ser/hanterar data direkt i Google Sheets.
 
 ## Setup
 
@@ -29,10 +29,10 @@ Sidan är skriv-only för users — ingen ser listan på sidan. Endast admin ser
 - Honeypot-fält (`website`, dolt via CSS) — enkla bottar fyller i det, request ignoreras tyst.
 - Rate limit — max 20 requests/minut globalt (CacheService), över det avvisas med felmeddelande.
 - `LockService` — förhindrar race condition vid samtidiga skrivningar.
-- Detta stoppar naiv bot-spam och enkel injection. Stoppar INTE en riktad angripare med skript. Vill ha starkare skydd: lägg till Cloudflare Turnstile/reCAPTCHA, verifieras server-side i `doPost` (kräver gratis-konto, site key).
+- Detta stoppar naiv bot-spam och enkel injection.
 
 ## Notera
 
 - Endast `doPost` finns i backend — ingen `doGet` som läcker data. Vem som helst med URL kan bara *skriva*, inte läsa.
-- Admin ser/hanterar alla registreringar direkt i Google Sheet (kräver inloggning på det Google-kontot).
-- Uppdaterar du `apps-script/Code.gs` i editorn: kräver ny deployment-version (Deploy → Manage deployments → Edit → New version) för att slå igenom.
+- Admin ser/hanterar alla registreringar direkt i Google Sheets (kräver inloggning på det Google-kontot).
+- Uppdaterar du `apps-script/Code.gs` i editorn: kräver ny deployment-version (Deploy → Manage deployments → Edit → New version) för att gå igenom.
