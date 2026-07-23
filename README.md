@@ -33,6 +33,6 @@ Sidan är write-only för users, ingen ser listan. Endast admin ser/hanterar dat
 
 ## Notera
 
-- Endast `doPost` finns i backend — ingen `doGet` som läcker data. Vem som helst med URL kan bara *skriva*, inte läsa.
+- Endast `doPost` finns i backend, ingen `doGet` som läcker data. Vem som helst med URL kan bara *skriva*, inte läsa.
 - Admin ser/hanterar alla registreringar direkt i Google Sheets (kräver inloggning på det Google-kontot).
 - Uppdaterar du `apps-script/Code.gs` i editorn: kräver ny deployment-version (Deploy → Manage deployments → Edit → New version) för att gå igenom.
