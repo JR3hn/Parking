@@ -17,10 +17,11 @@
     <div class="card">
       <div class="camWrap" id="camWrap">
         <video id="video" playsinline autoplay muted></video>
-        <div class="plateGuide"></div>
+        <div class="plateGuide">
+          <div class="blueBandMarker"></div>
+        </div>
       </div>
       <canvas id="canvas" hidden></canvas>
-      <canvas id="cropCanvas" hidden></canvas>
 
       <button type="button" id="startBtn">Starta kamera</button>
       <button type="button" id="captureBtn" hidden>Fota</button>
@@ -28,6 +29,8 @@
     </div>
 
     <div class="card" id="reviewCard" hidden>
+      <p class="cropPreviewLabel">Vad OCR faktiskt läste (beskuren/bearbetad bild):</p>
+      <canvas id="cropCanvas" class="cropPreview"></canvas>
       <div class="field">
         <label for="ocrResult">Avläst regnummer (kontrollera/rätta)</label>
         <input id="ocrResult" type="text" maxlength="10" autocomplete="off">
