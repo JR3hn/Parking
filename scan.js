@@ -138,10 +138,16 @@ function cropToGuide() {
   const guideLeftPx = (displayedWidth - guideWidthPx) / 2;
   const guideTopPx = (video.clientHeight - guideHeightPx) / 2;
 
-  const cropX = guideLeftPx * scale;
+  let cropX = guideLeftPx * scale;
   const cropY = guideTopPx * scale;
-  const cropW = guideWidthPx * scale;
+  let cropW = guideWidthPx * scale;
   const cropH = guideHeightPx * scale;
+
+  // klipp bort blått landskodsfält (ger falsk bokstav)
+  const blueBandRatio = 0.09;
+  const blueBandPx = cropW * blueBandRatio;
+  cropX += blueBandPx;
+  cropW -= blueBandPx;
 
   const upscale = 3.5;
   cropCanvas.width = cropW * upscale;
@@ -173,7 +179,7 @@ function grayscaleAndStretch(ctx, w, h) {
   ctx.putImageData(imgData, 0, 0);
 }
 
-// 3x3 unsharp kernel, motverkar kameraoskärpa (vanligaste läsfelet)
+// skärpning motverkar kameraoskärpa
 function sharpen(ctx, w, h) {
   const kernel = [0, -1, 0, -1, 5, -1, 0, -1, 0];
   const src = ctx.getImageData(0, 0, w, h);
@@ -222,8 +228,7 @@ function cleanText(text) {
   return text.toUpperCase().replace(/[^A-ZÅÄÖ0-9]/g, "");
 }
 
-// Svenska civila regnr: 3 bokstäver + 3 tecken (siffra el. sista nyare bokstav).
-// Rättar vanliga OCR-förväxlingar utifrån positionens förväntade typ.
+// sv regnr: 3 bokstäver + 3 tecken, rättar OCR-förväxling per position
 const DIGIT_TO_LETTER = { 0: "O", 1: "I", 5: "S", 8: "B" };
 const LETTER_TO_DIGIT = { O: "0", I: "1", S: "5", B: "8" };
 
@@ -236,7 +241,7 @@ function correctPlateChars(text) {
   for (let i = 3; i < 5; i++) {
     if (LETTER_TO_DIGIT[chars[i]]) chars[i] = LETTER_TO_DIGIT[chars[i]];
   }
-  // position 6 (index 5) kan vara siffra eller bokstav (nyare format), rör ej
+  // sista tecknet kan vara bokstav (nytt format), rör ej
   return chars.join("");
 }
 

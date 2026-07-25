@@ -47,7 +47,7 @@ function checkRateLimit_() {
   }
 }
 
-// loggar skannade regnr i egen flik, läser inte/matchar inte mot Data-fliken
+// loggar skanning, rör ej Data-fliken (write-only kvar)
 function handleScanBatch_(data) {
   const plates = Array.isArray(data.plates) ? data.plates : [];
   if (plates.length === 0) throw new Error("Tom lista");
