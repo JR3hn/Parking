@@ -211,6 +211,7 @@ async function getWorker() {
     await worker.setParameters({
       tessedit_char_whitelist: CHAR_WHITELIST,
       tessedit_pageseg_mode: "7", // enda textrad, inte auto-layout
+      tessedit_ocr_engine_mode: "0", // legacy+LSTM - whitelist ger annars alltid confidence 0
     });
   }
   return worker;
@@ -219,7 +220,12 @@ async function getWorker() {
 async function recognize(canvasEl) {
   const w = await getWorker();
   const { data } = await w.recognize(canvasEl);
-  return { text: data.text, confidence: data.confidence };
+  let confidence = data.confidence;
+  if (!confidence && data.words?.length) {
+    // top-level confidence kan bli 0 med whitelist+PSM7, räkna snitt på ordnivå istället
+    confidence = data.words.reduce((sum, wd) => sum + wd.confidence, 0) / data.words.length;
+  }
+  return { text: data.text, confidence };
 }
 
 function cleanText(text) {
