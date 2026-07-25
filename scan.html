@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Regnummerscanning</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="scan.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>📷 Regnummerscanning</h1>
+      <p class="sub">Fota regnummer, kontrollera avläsning, lägg till i listan</p>
+    </header>
+
+    <div class="card">
+      <div class="camWrap" id="camWrap">
+        <video id="video" playsinline autoplay muted></video>
+        <div class="plateGuide"></div>
+      </div>
+      <canvas id="canvas" hidden></canvas>
+      <canvas id="cropCanvas" hidden></canvas>
+
+      <button type="button" id="startBtn">Starta kamera</button>
+      <button type="button" id="captureBtn" hidden>Fota</button>
+      <p id="camMsg" class="msg" role="status"></p>
+    </div>
+
+    <div class="card" id="reviewCard" hidden>
+      <div class="field">
+        <label for="ocrResult">Avläst regnummer (kontrollera/rätta)</label>
+        <input id="ocrResult" type="text" maxlength="10" autocomplete="off">
+      </div>
+      <div class="btnRow">
+        <button type="button" id="addBtn">Lägg till i listan</button>
+        <button type="button" id="retakeBtn" class="secondary">Fota om</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Lista (<span id="listCount">0</span>)</h2>
+      <ul id="plateList" class="plateList"></ul>
+      <div class="btnRow">
+        <button type="button" id="sendBtn" disabled>Skicka lista</button>
+        <button type="button" id="clearBtn" class="secondary">Rensa lista</button>
+      </div>
+      <p id="sendMsg" class="msg" role="status"></p>
+    </div>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="scan.js"></script>
+</body>
+</html>

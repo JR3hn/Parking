@@ -1,10 +1,13 @@
 const SHEET_NAME = "Data";
+const SCANS_SHEET_NAME = "Scans";
 const RATE_LIMIT_MAX = 20; // per minut
+const SCAN_BATCH_MAX = 200; // max regnr per scan-sändning
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÅÄÖåäö '-]{1,50}$/;
 const GROUP_RE = /^[A-Za-zÀ-ÖØ-öø-ÿÅÄÖåäö0-9 '-]{1,50}$/;
 const PHONE_RE = /^'?[0-9+\-\s()]{6,20}$/;
 const REGNR_RE = /^[A-ZÅÄÖ0-9]{2,8}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
 
 // ingen doGet, sidan ska bara kunna skriva, inte läsa listan
 
@@ -14,6 +17,16 @@ function getSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow(["Timestamp", "Förnamn", "Efternamn", "Telefon", "Regnr", "Slutdatum", "Grupp"]);
+  }
+  return sheet;
+}
+
+function getScansSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SCANS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SCANS_SHEET_NAME);
+    sheet.appendRow(["Timestamp", "Regnr", "Skannad (klient)"]);
   }
   return sheet;
 }
@@ -34,6 +47,36 @@ function checkRateLimit_() {
   }
 }
 
+// loggar skannade regnr i egen flik, läser inte/matchar inte mot Data-fliken
+function handleScanBatch_(data) {
+  const plates = Array.isArray(data.plates) ? data.plates : [];
+  if (plates.length === 0) throw new Error("Tom lista");
+  if (plates.length > SCAN_BATCH_MAX) throw new Error("För många regnr i en sändning");
+
+  const rows = [];
+  let skipped = 0;
+  plates.forEach((p) => {
+    const regnr = String((p && p.regnr) || "").trim().toUpperCase();
+    const ts = String((p && p.ts) || "");
+    if (!REGNR_RE.test(regnr) || !ISO_DATE_RE.test(ts)) {
+      skipped++;
+      return;
+    }
+    rows.push([new Date(), sanitizeText_(regnr), ts]);
+  });
+
+  if (rows.length === 0) throw new Error("Inga giltiga regnr i listan");
+
+  const sheet = getScansSheet_();
+  sheet
+    .getRange(sheet.getLastRow() + 1, 1, rows.length, 3)
+    .setValues(rows);
+
+  return ContentService.createTextOutput(
+    JSON.stringify({ ok: true, saved: rows.length, skipped: skipped })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   let lockAcquired = false;
@@ -43,6 +86,10 @@ function doPost(e) {
     checkRateLimit_();
 
     const data = JSON.parse(e.postData.contents);
+
+    if (data.action === "scan_batch") {
+      return handleScanBatch_(data);
+    }
 
     // bot brukar fylla i honeypot-fältet, riktiga users ser det aldrig
     if (String(data.website || "").trim() !== "") {
