@@ -104,6 +104,7 @@ captureBtn.addEventListener("click", async () => {
     reviewCard.hidden = false;
     ocrResult.focus();
     ocrResult.select();
+    setCamMsg("", "");
   } catch (err) {
     setCamMsg("Kunde inte läsa av: " + err.message, "err");
   } finally {
