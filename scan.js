@@ -104,11 +104,6 @@ captureBtn.addEventListener("click", async () => {
     reviewCard.hidden = false;
     ocrResult.focus();
     ocrResult.select();
-    if (confidence < 60) {
-      setCamMsg("Osäker läsning (" + Math.round(confidence) + "%) - kontrollera texten!", "warn");
-    } else {
-      setCamMsg("", "");
-    }
   } catch (err) {
     setCamMsg("Kunde inte läsa av: " + err.message, "err");
   } finally {
