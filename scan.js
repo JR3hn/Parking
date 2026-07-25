@@ -45,17 +45,10 @@ function saveList() {
 
 function renderList() {
   listCount.textContent = plates.length;
-  sendBtn.disabled = plates.every((p) => p.sent);
+  sendBtn.disabled = plates.length === 0;
   plateListEl.innerHTML = "";
   plates.forEach((p, i) => {
     const li = document.createElement("li");
-
-    const sentBox = document.createElement("input");
-    sentBox.type = "checkbox";
-    sentBox.className = "sentBox";
-    sentBox.checked = !!p.sent;
-    sentBox.disabled = true;
-    sentBox.title = p.sent ? "Skickad" : "Ej skickad";
 
     const input = document.createElement("input");
     input.type = "text";
@@ -80,7 +73,7 @@ function renderList() {
       renderList();
     });
 
-    li.append(sentBox, input, ts, del);
+    li.append(input, ts, del);
     plateListEl.append(li);
   });
 }
@@ -130,18 +123,23 @@ function cropToGuide() {
   canvas.height = vh;
   canvas.getContext("2d").drawImage(video, 0, 0, vw, vh);
 
-  const displayedWidth = video.clientWidth;
-  const scale = vw / displayedWidth;
+  const containerW = video.clientWidth;
+  const containerH = video.clientHeight;
 
-  const guideWidthPx = 0.78 * displayedWidth;
+  // video visas med object-fit:cover i kvadratisk ram - måste räkna tillbaka till videons faktiska pixlar
+  const coverScale = Math.max(containerW / vw, containerH / vh);
+  const offsetX = (vw * coverScale - containerW) / 2;
+  const offsetY = (vh * coverScale - containerH) / 2;
+
+  const guideWidthPx = 0.78 * containerW;
   const guideHeightPx = guideWidthPx / 4.7;
-  const guideLeftPx = (displayedWidth - guideWidthPx) / 2;
-  const guideTopPx = (video.clientHeight - guideHeightPx) / 2;
+  const guideLeftPx = (containerW - guideWidthPx) / 2;
+  const guideTopPx = (containerH - guideHeightPx) / 2;
 
-  let cropX = guideLeftPx * scale;
-  const cropY = guideTopPx * scale;
-  let cropW = guideWidthPx * scale;
-  const cropH = guideHeightPx * scale;
+  let cropX = (guideLeftPx + offsetX) / coverScale;
+  const cropY = (guideTopPx + offsetY) / coverScale;
+  let cropW = guideWidthPx / coverScale;
+  const cropH = guideHeightPx / coverScale;
 
   // klipp bort blått landskodsfält (ger falsk bokstav)
   const blueBandRatio = 0.09;
@@ -253,7 +251,7 @@ retakeBtn.addEventListener("click", () => {
 addBtn.addEventListener("click", () => {
   const regnr = ocrResult.value.trim().toUpperCase();
   if (!regnr) return;
-  plates.push({ regnr, ts: Date.now(), sent: false });
+  plates.push({ regnr, ts: Date.now() });
   saveList();
   renderList();
   reviewCard.hidden = true;
@@ -270,15 +268,14 @@ clearBtn.addEventListener("click", () => {
 });
 
 sendBtn.addEventListener("click", async () => {
-  const unsent = plates.filter((p) => !p.sent);
-  if (unsent.length === 0) return;
+  if (plates.length === 0) return;
 
   sendBtn.disabled = true;
   setSendMsg("Skickar...", "");
   try {
     const payload = {
       action: "scan_batch",
-      plates: unsent.map((p) => ({ regnr: p.regnr, ts: new Date(p.ts).toISOString() })),
+      plates: plates.map((p) => ({ regnr: p.regnr, ts: new Date(p.ts).toISOString() })),
     };
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -287,12 +284,12 @@ sendBtn.addEventListener("click", async () => {
     });
     const result = await res.json();
     if (!result.ok) throw new Error(result.error || "Okänt fel");
-    unsent.forEach((p) => (p.sent = true));
+    setSendMsg("Skickat! " + plates.length + " regnummer sparade.", "ok");
+    plates = [];
     saveList();
     renderList();
-    setSendMsg("Skickat! " + unsent.length + " regnummer sparade.", "ok");
   } catch (err) {
     setSendMsg("Kunde inte skicka: " + err.message, "err");
-    sendBtn.disabled = plates.every((p) => p.sent);
+    sendBtn.disabled = plates.length === 0;
   }
 });
