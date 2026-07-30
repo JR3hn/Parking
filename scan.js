@@ -16,6 +16,9 @@ const sendMsg = document.getElementById("sendMsg");
 
 const CHAR_WHITELIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ0123456789";
 const STORAGE_KEY = "scanList";
+const CONFIDENCE_WARN_THRESHOLD = 60; // tesseract confidence 0-100, kalibrera vid behov
+const BURST_FRAMES = 3;
+const BURST_DELAY_MS = 150;
 
 let worker = null;
 let plates = loadList();
@@ -94,17 +97,39 @@ startBtn.addEventListener("click", async () => {
   }
 });
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function showCropPreview(sourceCanvas) {
+  cropCanvas.width = sourceCanvas.width;
+  cropCanvas.height = sourceCanvas.height;
+  cropCanvas.getContext("2d").drawImage(sourceCanvas, 0, 0);
+}
+
 captureBtn.addEventListener("click", async () => {
   captureBtn.disabled = true;
-  setCamMsg("Läser...", "");
+  setCamMsg("Läser (flera bilder)...", "");
   try {
-    const cropped = cropToGuide();
-    const { text, confidence } = await recognize(cropped);
-    ocrResult.value = correctPlateChars(cleanText(text));
+    // fotar flera bilder i följd och behåller den med högst confidence - motverkar enstaka skakiga/suddiga bilder
+    const shots = [];
+    for (let i = 0; i < BURST_FRAMES; i++) {
+      const cropped = cropToGuide();
+      const { text, confidence } = await recognize(cropped);
+      shots.push({ text, confidence: confidence || 0, canvas: cropped });
+      if (i < BURST_FRAMES - 1) await sleep(BURST_DELAY_MS);
+    }
+    const best = shots.reduce((a, b) => (b.confidence > a.confidence ? b : a));
+    showCropPreview(best.canvas);
+    ocrResult.value = correctPlateChars(cleanText(best.text));
     reviewCard.hidden = false;
     ocrResult.focus();
     ocrResult.select();
-    setCamMsg("", "");
+    if (best.confidence < CONFIDENCE_WARN_THRESHOLD) {
+      setCamMsg("", "");
+    } else {
+      setCamMsg("", "");
+    }
   } catch (err) {
     setCamMsg("Kunde inte läsa av: " + err.message, "err");
   } finally {
@@ -144,31 +169,60 @@ function cropToGuide() {
   cropW -= blueBandPx;
 
   const upscale = 3.5;
-  cropCanvas.width = cropW * upscale;
-  cropCanvas.height = cropH * upscale;
-  const ctx = cropCanvas.getContext("2d");
+  // eget canvas per bild (inte det synliga #cropCanvas) - burst-fotografering kör flera bilder innan en visas
+  const work = document.createElement("canvas");
+  work.width = cropW * upscale;
+  work.height = cropH * upscale;
+  const ctx = work.getContext("2d");
   ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropCanvas.width, cropCanvas.height);
+  ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, work.width, work.height);
 
-  grayscaleAndStretch(ctx, cropCanvas.width, cropCanvas.height);
-  sharpen(ctx, cropCanvas.width, cropCanvas.height);
-  return cropCanvas;
+  toGrayscale(ctx, work.width, work.height);
+  sharpen(ctx, work.width, work.height);
+  otsuBinarize(ctx, work.width, work.height);
+  return work;
 }
 
-function grayscaleAndStretch(ctx, w, h) {
+function toGrayscale(ctx, w, h) {
   const imgData = ctx.getImageData(0, 0, w, h);
   const d = imgData.data;
-  let min = 255, max = 0;
   for (let i = 0; i < d.length; i += 4) {
     const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
     d[i] = d[i + 1] = d[i + 2] = g;
-    if (g < min) min = g;
-    if (g > max) max = g;
   }
-  const range = max - min || 1;
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Otsu-tröskling till ren svart/vit - tåligare mot glans/skugga än enkel min/max-stretch
+function otsuBinarize(ctx, w, h) {
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  const hist = new Array(256).fill(0);
+  for (let i = 0; i < d.length; i += 4) hist[d[i] | 0]++;
+
+  const total = w * h;
+  let sumAll = 0;
+  for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+
+  let sumB = 0, weightB = 0, maxVariance = 0, threshold = 127;
+  for (let t = 0; t < 256; t++) {
+    weightB += hist[t];
+    if (weightB === 0) continue;
+    const weightF = total - weightB;
+    if (weightF === 0) break;
+    sumB += t * hist[t];
+    const meanB = sumB / weightB;
+    const meanF = (sumAll - sumB) / weightF;
+    const variance = weightB * weightF * (meanB - meanF) * (meanB - meanF);
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      threshold = t;
+    }
+  }
+
   for (let i = 0; i < d.length; i += 4) {
-    const stretched = ((d[i] - min) / range) * 255;
-    d[i] = d[i + 1] = d[i + 2] = stretched;
+    const v = d[i] >= threshold ? 255 : 0;
+    d[i] = d[i + 1] = d[i + 2] = v;
   }
   ctx.putImageData(imgData, 0, 0);
 }
@@ -206,8 +260,8 @@ async function getWorker() {
     worker = await Tesseract.createWorker("eng");
     await worker.setParameters({
       tessedit_char_whitelist: CHAR_WHITELIST,
-      tessedit_pageseg_mode: "7", // enda textrad, inte auto-layout
-      tessedit_ocr_engine_mode: "0", // legacy+LSTM - whitelist ger annars alltid confidence 0
+      tessedit_pageseg_mode: "13", // rå textrad, hoppar layoutheuristik - beskärningen är redan tight
+      tessedit_ocr_engine_mode: "1", // ren LSTM, träffsäkrare än legacy+LSTM; ordnivå-fallback nedan täcker confidence=0
     });
   }
   return worker;
@@ -218,7 +272,7 @@ async function recognize(canvasEl) {
   const { data } = await w.recognize(canvasEl);
   let confidence = data.confidence;
   if (!confidence && data.words?.length) {
-    // top-level confidence kan bli 0 med whitelist+PSM7, räkna snitt på ordnivå istället
+    // top-level confidence kan bli 0 med whitelist, räkna snitt på ordnivå istället
     confidence = data.words.reduce((sum, wd) => sum + wd.confidence, 0) / data.words.length;
   }
   return { text: data.text, confidence };
@@ -232,8 +286,26 @@ function cleanText(text) {
 const DIGIT_TO_LETTER = { 0: "O", 1: "I", 5: "S", 8: "B" };
 const LETTER_TO_DIGIT = { O: "0", I: "1", S: "5", B: "8" };
 
-function correctPlateChars(text) {
-  if (text.length !== 6) return text;
+function isLetterChar(c) {
+  return /[A-ZÅÄÖ]/.test(c);
+}
+
+function isDigitChar(c) {
+  return /[0-9]/.test(c);
+}
+
+// hur väl 6 tecken matchar LLL-DD-(L/D) - används för att välja bästa fönster ur en 7-teckenavläsning
+function patternScore(chars) {
+  let score = 1; // sista positionen kan vara bokstav eller siffra, räknas alltid
+  if (isLetterChar(chars[0])) score++;
+  if (isLetterChar(chars[1])) score++;
+  if (isLetterChar(chars[2])) score++;
+  if (isDigitChar(chars[3])) score++;
+  if (isDigitChar(chars[4])) score++;
+  return score;
+}
+
+function applyConfusableFix(text) {
   const chars = text.split("");
   for (let i = 0; i < 3; i++) {
     if (DIGIT_TO_LETTER[chars[i]]) chars[i] = DIGIT_TO_LETTER[chars[i]];
@@ -243,6 +315,29 @@ function correctPlateChars(text) {
   }
   // sista tecknet kan vara bokstav (nytt format), rör ej
   return chars.join("");
+}
+
+function correctPlateChars(text) {
+  if (text.length === 6) return applyConfusableFix(text);
+
+  if (text.length === 7) {
+    // troligen ett extra skräptecken (glans/brusrand) - prova ta bort ett i taget, behåll bästa passform
+    let best = null;
+    let bestScore = -1;
+    for (let i = 0; i < text.length; i++) {
+      const candidate = text.slice(0, i) + text.slice(i + 1);
+      const score = patternScore(candidate.split(""));
+      if (score > bestScore) {
+        bestScore = score;
+        best = candidate;
+      }
+    }
+    if (best && bestScore >= 5) return applyConfusableFix(best);
+    return text;
+  }
+
+  // t.ex. 5 tecken (troligen ett tecken tappat) - okänt vilket tecken som saknas, gissa inte, lämna orört
+  return text;
 }
 
 retakeBtn.addEventListener("click", () => {
